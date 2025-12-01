@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Timer with Vibration & Sound (integrated)</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; }
+    .time { font-size: 2rem; margin: .5rem 0; }
+    button { font-size: 1rem; padding: .4rem 0.6rem; margin-right: .4rem; }
+  </style>
+</head>
+<body>
+  <h2>Timer</h2>
+
+  <!-- Display elements (you said they might be inputs or labels later) -->
+  <div class="time">
+    Hrs: <span id="hrs">0</span> |
+    Min: <span id="min">0</span> |
+    Sec: <span id="sec">3</span>
+  </div>
+
+  <div id="timer">Idle</div>
+
+  <button id="startbtn">Start</button>
+  <button id="pausebtn" disabled>Pause</button>
+  <button id="resetbtn" disabled>Reset</button>
+
+  <script>
+  // --- Keep your variables as-is ---
+  let startbtn = document.getElementById("startbtn");
+
+  let hrs = document.getElementById("hrs");
+  let min = document.getElementById("min");
+  let sec = document.getElementById("sec");
+
+  // internal state
+  let countdown = null;
+  let remaining = { hours: 0, minutes: 0, seconds: 3 };
+
+  // --- Web Audio beep helper (uses AudioContext) ---
+  async function playBeep(duration = 600, freq = 880, type = 'sine') {
+    if (!window.AudioContext && !window.webkitAudioContext) throw new Error('Web Audio API not supported');
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AC();
+    try {
+      if (ctx.state === 'suspended') await ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = type;
+      osc.frequency.value = freq;
+
+      // tiny attack to avoid click
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      // ramp down and stop
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration/1000);
+      osc.stop(ctx.currentTime + duration/1000 + 0.02);
+
+      // close context after done
+      setTimeout(() => { try { ctx.close(); } catch(e) {} }, duration + 100);
+    } catch (err) {
+      try { ctx.close(); } catch (e) {}
+      throw err;
+    }
+  }
+
+  // --- Vibrate helper ---
+  function tryVibrate(pattern = [250, 100, 250]) {
+    if ('vibrate' in navigator) {
+      try {
+        // returns true/false in some browsers, undefined in others
+        const res = navigator.vibrate(pattern);
+        return !!res;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  // --- What to do when timer ends ---
+  async function onTimerEnd() {
+    const statusEl = document.getElementById('timer');
+    statusEl.textContent = "Timer ended — trying vibration & sound...";
+
+    // Try vibration first (phones)
+    let didVibrate = false;
+    try {
+      didVibrate = tryVibrate([200, 100, 200]);
+    } catch (e) {
+      didVibrate = false;
+    }
+
+    // Try sound (Web Audio). This is awaited so user gets the feedback if possible.
+    let didPlaySound = false;
+    try {
+      await playBeep(700, 880, 'sine');
+      didPlaySound = true;
+    } catch (err) {
+      didPlaySound = false;
+    }
+
+    // Final fallback: alert if nothing worked
+    if (didVibrate || didPlaySound) {
+      statusEl.textContent = 'Notified — ' +
+        (didVibrate ? 'vibration ' : '') +
+        (didPlaySound ? (didVibrate ? 'and sound' : 'sound') : '') + '.';
+    } else {
+      statusEl.textContent = 'No vibration or sound available — showing alert.';
+      alert("Time's up!");
+    }
+
+    // Re-enable Start and reset/pause buttons accordingly
+    startbtn.disabled = false;
+    document.getElementById('pausebtn').disabled = true;
+    document.getElementById('resetbtn').disabled = false;
+  }
+
+  // --- Your startTimer logic adapted ---
+  function startTimer() {
+    // Prevent multiple intervals
+    if (countdown) return;
+
+    // initialize from remaining (currently set to 0:0:3)
+    let seconds = remaining.seconds;
+    let minutes = remaining.minutes;
+    let hours = remaining.hours;
+
+    // Update display immediately
+    hrs.textContent = hours;
+    min.textContent = minutes;
+    sec.textContent = seconds;
+    document.getElementById('timer').textContent = 'Running...';
+
+    // disable start to avoid duplicates; enable pause/reset
+    startbtn.disabled = true;
+    document.getElementById('pausebtn').disabled = false;
+    document.getElementById('resetbtn').disabled = false;
+
+    countdown = setInterval(() => {
+      if (seconds === 0 && minutes > 0) {
+        minutes--;
+        seconds = 59;
+      } else if (minutes === 0 && hours > 0 && seconds === 0) {
+        hours--;
+        minutes = 59;
+        seconds = 59;
+      } else if (seconds > 0) {
+        seconds--;
+      } else {
+        // seconds === 0, minutes === 0, hours === 0 -> end
+        clearInterval(countdown);
+        countdown = null;
+        remaining = { hours: 0, minutes: 0, seconds: 0 };
+        document.getElementById("timer").textContent = "Time's UP!";
+        // call the notification handler
+        onTimerEnd();
+        return;
+      }
+
+      // update remaining state & display
+      remaining = { hours, minutes, seconds };
+      document.getElementById("sec").textContent = seconds;
+      document.getElementById("min").textContent = minutes;
+      document.getElementById("hrs").textContent = hours;
+    }, 1000);
+  }
+
+  // --- Simple pause & reset (optional basic behaviour) ---
+  function pauseTimer() {
+    if (!countdown) return;
+    clearInterval(countdown);
+    countdown = null;
+    document.getElementById('timer').textContent = 'Paused';
+    startbtn.disabled = false;
+    document.getElementById('pausebtn').disabled = true;
+  }
+
+  function resetTimer() {
+    // stop interval and reset to initial values (3 seconds as in your example)
+    if (countdown) { clearInterval(countdown); countdown = null; }
+    remaining = { hours: 0, minutes: 0, seconds: 3 };
+    hrs.textContent = remaining.hours;
+    min.textContent = remaining.minutes;
+    sec.textContent = remaining.seconds;
+    document.getElementById('timer').textContent = 'Idle';
+    startbtn.disabled = false;
+    document.getElementById('pausebtn').disabled = true;
+    document.getElementById('resetbtn').disabled = true;
+  }
+
+  // --- Hook up UI ---
+  startbtn.addEventListener('click', startTimer);
+  document.getElementById('pausebtn').addEventListener('click', pauseTimer);
+  document.getElementById('resetbtn').addEventListener('click', resetTimer);
+
+  // optional: set initial display (already set in HTML but ensures sync)
+  hrs.textContent = remaining.hours;
+  min.textContent = remaining.minutes;
+  sec.textContent = remaining.seconds;
+  </script>
+</body>
+</html>
