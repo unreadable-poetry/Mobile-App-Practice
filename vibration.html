@@ -38,7 +38,7 @@
   let remaining = { hours: 0, minutes: 0, seconds: 3 };
 
   // --- Web Audio beep helper (uses AudioContext) ---
-  async function playBeep(duration = 600, freq = 880, type = 'sine') {
+  async function playBeep(duration = 1000, freq = 1000, type = 'sine') {
     if (!window.AudioContext && !window.webkitAudioContext) throw new Error('Web Audio API not supported');
     const AC = window.AudioContext || window.webkitAudioContext;
     const ctx = new AC();
@@ -71,7 +71,7 @@
   }
 
   // --- Vibrate helper ---
-  function tryVibrate(pattern = [250, 100, 250]) {
+  function tryVibrate(pattern = [300, 200, 100]) {
     if ('vibrate' in navigator) {
       try {
         // returns true/false in some browsers, undefined in others
@@ -207,3 +207,4 @@
   </script>
 </body>
 </html>
+
