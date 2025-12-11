@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mobile Patterns Demo</title>
+<style>
+  :root{--bg:#f7f7f8;--card:#fff;--accent:#0b66ff;--muted:#666}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#111}
+  header{height:56px;display:flex;align-items:center;padding:0 12px;background:white;box-shadow:0 1px 0 rgba(0,0,0,.06);position:sticky;top:0;z-index:30}
+  .hamburger{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .title{flex:1;text-align:center;font-weight:600}
+  /* Side drawer (hamburger menu) */
+  .drawer{position:fixed;left:-260px;top:0;bottom:0;width:260px;background:white;box-shadow:2px 0 12px rgba(0,0,0,.12);transition:left .25s;z-index:40;padding:20px}
+  .drawer.open{left:0}
+  .drawer a{display:block;padding:12px 6px;color:var(--muted);text-decoration:none}
+  /* Overlay */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s;z-index:35}
+  .overlay.show{opacity:1;pointer-events:auto}
+  /* Main content */
+  main{padding:12px;padding-bottom:92px;min-height:100vh;box-sizing:border-box}
+  .card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:12px}
+  /* Bottom tab nav */
+  .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:64px;background:white;display:flex;align-items:center;justify-content:space-around;border-top:1px solid #eee;z-index:50}
+  .tab{flex:1;text-align:center;padding:8px 6px;font-size:13px;color:var(--muted);cursor:pointer}
+  .tab.active{color:var(--accent);font-weight:600}
+  /* Bottom sheet */
+  .bottom-sheet{position:fixed;left:0;right:0;bottom:-60%;height:50%;background:var(--card);border-top-left-radius:14px;border-top-right-radius:14px;box-shadow:0 -6px 20px rgba(0,0,0,.15);transition:transform .25s;transform:translateY(100%);z-index:60;padding:12px;overflow:auto}
+  .bottom-sheet.open{transform:translateY(0)}
+  .sheet-handle{width:44px;height:6px;background:#ddd;border-radius:6px;margin:6px auto}
+  /* Swipe container */
+  .swipe-wrap{overflow:hidden;background:linear-gradient(#fff,#fff);border-radius:10px;margin-bottom:12px}
+  .swipe-track{display:flex;transition:transform .25s}
+  .slide{min-width:100%;box-sizing:border-box;padding:20px}
+  /* Pull-to-refresh indicator */
+  .ptr{position:relative;height:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;overflow:visible}
+  .ptr .msg{transform:translateY(0);transition:transform .15s}
+  /* List item */
+  .list{padding:0;margin:0;list-style:none}
+  .list li{padding:12px;border-bottom:1px solid #eee;background:var(--card);border-radius:8px;margin-bottom:8px}
+  /* Loader */
+  .loader{padding:12px;text-align:center;color:var(--muted)}
+  @media (min-width:700px){
+    main{max-width:600px;margin:0 auto}
+    .drawer{left:-300px}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="hamburger" id="openDrawer" aria-label="Open menu">☰</div>
+    <div class="title">Mobile Patterns Demo - test purposes only</div>
+    <button id="openSheet" style="margin-right:8px">Actions</button>
+  </header>
+
+  <nav class="drawer" id="drawer" aria-hidden="true">
+    <h3>Menu</h3>
+    <a href="#" data-target="home">Home</a>
+    <a href="#" data-target="swipe">Swipe screens</a>
+    <a href="#" data-target="feed">Feed (infinite)</a>
+    <hr/>
+    <a href="#" id="closeDrawer">Close</a>
+  </nav>
+  <div class="overlay" id="overlay"></div>
+
+  <main id="content" role="main">
+    <!-- Pull-to-refresh area -->
+    <div class="ptr" id="ptr"><div class="msg" id="ptrMsg">Pull down to refresh</div></div>
+
+    <!-- Bottom Tab Sections (3) -->
+    <section id="home" class="card section" aria-live="polite">
+      <h4>Home (Bottom Tabs)</h4>
+      <p class="muted">This is the main app view. Use the bottom tab navigation to switch sections quickly.</p>
+
+      <!-- Swipe navigation -->
+      <div class="swipe-wrap" id="swipeWrap" aria-label="Swipe slides">
+        <div class="swipe-track" id="swipeTrack">
+          <div class="slide card"><strong>Slide 1</strong><p>Intro / promo</p></div>
+          <div class="slide card"><strong>Slide 2</strong><p>Feature highlight</p></div>
+          <div class="slide card"><strong>Slide 3</strong><p>Tips</p></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px">
+        <button id="prev">Prev</button><button id="next">Next</button>
+      </div>
+      <div class="card">
+        <p>Open the hamburger (top-left) for secondary navigation, or tap “Actions” to open a bottom sheet.</p>
+      </div>
+    </section>
+
+    <section id="swipe" class="card section" style="display:none">
+      <h4>Swipe Screens</h4>
+      <p>Swipe left/right (or use Prev/Next) to move between slides — an alternative to taps when browsing horizontally grouped content.</p>
+      <div class="swipe-wrap" id="swipeWrap2">
+        <div class="swipe-track" id="swipeTrack2">
+          <div class="slide card"><strong>Screen A</strong><p>Content A</p></div>
+          <div class="slide card"><strong>Screen B</strong><p>Content B</p></div>
+          <div class="slide card"><strong>Screen C</strong><p>Content C</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="feed" class="card section" style="display:none">
+      <h4>Feed (Infinite Scroll)</h4>
+      <p>Scroll down and more items will load automatically.</p>
+      <ul class="list" id="feedList"></ul>
+      <div class="loader" id="feedLoader">Loading more...</div>
+    </section>
+  </main>
+
+  <!-- Bottom sheet -->
+  <div class="bottom-sheet" id="sheet" aria-hidden="true">
+    <div class="sheet-handle"></div>
+    <h4>Actions</h4>
+    <p>Contextual actions belong here — quick tasks, sharing, or details related to the current screen.</p>
+    <button id="doAction">Do action (demo)</button>
+    <p style="margin-top:20px;color:var(--muted)">Tap outside or press Close to dismiss.</p>
+    <button id="closeSheet" style="margin-top:12px">Close</button>
+  </div>
+
+  <!-- Bottom tab nav -->
+  <nav class="bottom-nav" role="navigation" aria-label="Bottom tabs">
+    <div class="tab active" data-target="home">Home</div>
+    <div class="tab" data-target="swipe">Swipe</div>
+    <div class="tab" data-target="feed">Feed</div>
+  </nav>
+
+<script>
+/* ======== Hamburger drawer ======== */
+const drawer = document.getElementById('drawer');
+const overlay = document.getElementById('overlay');
+document.getElementById('openDrawer').addEventListener('click', ()=>{ drawer.classList.add('open'); overlay.classList.add('show'); drawer.setAttribute('aria-hidden','false')});
+document.getElementById('closeDrawer').addEventListener('click', closeDrawer);
+overlay.addEventListener('click', closeDrawer);
+function closeDrawer(){ drawer.classList.remove('open'); overlay.classList.remove('show'); drawer.setAttribute('aria-hidden','true')}
+/* drawer links close and navigate */
+drawer.querySelectorAll('a[data-target]').forEach(a=>{
+  a.addEventListener('click', e=>{
+    e.preventDefault();
+    const t = a.getAttribute('data-target'); activateSection(t);
+    closeDrawer();
+  });
+});
+
+/* ======== Bottom sheet ======== */
+const sheet = document.getElementById('sheet');
+document.getElementById('openSheet').addEventListener('click', ()=>{ sheet.classList.add('open'); sheet.setAttribute('aria-hidden','false'); overlay.classList.add('show')});
+document.getElementById('closeSheet').addEventListener('click', closeSheet);
+document.getElementById('doAction').addEventListener('click', ()=>{ alert('Action executed (demo)'); closeSheet(); });
+function closeSheet(){ sheet.classList.remove('open'); sheet.setAttribute('aria-hidden','true'); overlay.classList.remove('show')}
+
+/* Dismiss sheet if overlay clicked and sheet open */
+overlay.addEventListener('click', ()=>{ if(sheet.classList.contains('open')) closeSheet(); else closeDrawer(); });
+
+/* ======== Bottom tabs navigation ======== */
+const tabs = document.querySelectorAll('.tab');
+tabs.forEach(tab=>{
+  tab.addEventListener('click', ()=>{ tabs.forEach(t=>t.classList.remove('active')); tab.classList.add('active'); activateSection(tab.dataset.target) });
+});
+function activateSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.style.display = s.id===id ? '' : 'none');
+  // scroll content to top for UX
+  document.getElementById('content').scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ======== Swipe navigation (basic touch + buttons) ======== */
+function makeSwipe(trackId,prevBtnId,nextBtnId){
+  const track = document.getElementById(trackId);
+  const slides = track.children;
+  let index = 0, startX=0, dx=0;
+  function show(i){ index = Math.max(0,Math.min(i,slides.length-1)); track.style.transform = `translateX(${ -index * 100 }%)`;}
+  if(prevBtnId){
+    document.getElementById(prevBtnId).addEventListener('click', ()=> show(index-1));
+  }
+  if(nextBtnId){
+    document.getElementById(nextBtnId).addEventListener('click', ()=> show(index+1));
+  }
+  track.addEventListener('touchstart', e=>{ startX = e.touches[0].clientX; dx = 0; });
+  track.addEventListener('touchmove', e=>{ dx = e.touches[0].clientX - startX; track.style.transition='none'; track.style.transform = `translateX(${ -index*100 + (dx / window.innerWidth) * 100 }%)`; });
+  track.addEventListener('touchend', ()=>{
+    track.style.transition='transform .25s';
+    if (Math.abs(dx) > 50) show(index + (dx<0 ? 1 : -1)); else show(index);
+  });
+}
+makeSwipe('swipeTrack','prev','next');
+makeSwipe('swipeTrack2'); // second track has no buttons
+
+/* ======== Pull-to-refresh (touch) ======== */
+const ptr = document.getElementById('ptr');
+const ptrMsg = document.getElementById('ptrMsg');
+let pulling = false, startY=0, ptrDist=0;
+const THRESHOLD = 70;
+document.getElementById('content').addEventListener('touchstart', e=>{
+  if(document.getElementById('content').scrollTop === 0){ startY = e.touches[0].clientY; pulling = true; ptrDist = 0; ptr.style.height='0px'; }
+});
+document.getElementById('content').addEventListener('touchmove', e=>{
+  if(!pulling) return;
+  const y = e.touches[0].clientY;
+  ptrDist = Math.max(0, y - startY);
+  ptr.style.height = ptrDist + 'px';
+  ptrMsg.style.transform = `translateY(${Math.min(ptrDist,THRESHOLD)}px)`;
+  ptrMsg.textContent = ptrDist > THRESHOLD ? 'Release to refresh' : 'Pull down to refresh';
+});
+document.getElementById('content').addEventListener('touchend', ()=>{
+  if(!pulling) return;
+  pulling = false;
+  if(ptrDist > THRESHOLD){
+    ptrMsg.textContent = 'Refreshing...';
+    // simulate async refresh
+    setTimeout(()=>{
+      // simple demo: prepend a card
+      const home = document.getElementById('home');
+      const el = document.createElement('div'); el.className='card'; el.textContent = 'New content loaded at ' + new Date().toLocaleTimeString();
+      home.insertBefore(el, home.children[2] || home.firstChild);
+      ptr.style.height = '0px';
+      ptrMsg.textContent = 'Pull down to refresh';
+    },1000);
+  } else {
+    ptr.style.height = '0px';
+    ptrMsg.textContent = 'Pull down to refresh';
+  }
+});
+
+/* ======== Infinite scroll feed ======== */
+const feedList = document.getElementById('feedList');
+const feedLoader = document.getElementById('feedLoader');
+let feedPage = 0, loadingFeed = false;
+function appendItems(n=10){
+  for(let i=0;i<n;i++){
+    const li = document.createElement('li');
+    li.textContent = `Feed item ${feedPage*10 + i + 1}`;
+    feedList.appendChild(li);
+  }
+  feedPage++;
+}
+appendItems(); // initial
+window.addEventListener('scroll', onScrollFeed, {passive:true});
+function onScrollFeed(){
+  // only when feed section is active
+  if(document.getElementById('feed').style.display === 'none') return;
+  if(loadingFeed) return;
+  const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 120;
+  if(nearBottom){
+    loadingFeed = true;
+    feedLoader.textContent = 'Loading more...';
+    setTimeout(()=>{ appendItems(8); loadingFeed=false; feedLoader.textContent=''; },800);
+  }
+}
+
+/* Improve accessibility: navigate from drawer or tabs */
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape'){ closeDrawer(); closeSheet(); }
+});
+
+/* Initialize feed loader visibility */
+feedLoader.textContent = '';
+
+</script>
+</body>
+</html>
